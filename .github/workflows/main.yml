@@ -1,0 +1,56 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Install Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '18'
+      - name: Install dependencies
+        run: npm ci
+      - name: Build project
+        run: npm run build
+      - name: Setup AWS CLI
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - name: Check if stack is deployed
+        id: check-stack
+        run: |
+          if aws cloudformation describe-stacks --stack-name CraftSyncStack; then
+            echo "STACK_EXISTS=true" >> $GITHUB_ENV
+          fi
+      - name: Deploy CloudFormation stack if not exists
+        if: env.STACK_EXISTS != 'true'
+        run: |
+          aws cloudformation create-stack --stack-name CraftSyncStack --template-body file://orchestration.yaml
+          aws cloudformation wait stack-create-complete --stack-name CraftSyncStack
+      - name: Get EC2 public IP
+        id: get-ip
+        run: |
+          IP=$(aws cloudformation describe-stacks --stack-name CraftSyncStack --query "Stacks[0].Outputs[?OutputKey=='PublicIP'].OutputValue" --output text)
+          echo "EC2_IP=$IP" >> $GITHUB_ENV
+      - name: Setup SSH Key
+        env:
+          PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          echo "$PRIVATE_KEY" > private_key.pem
+          chmod 600 private_key.pem
+          eval "$(ssh-agent -s)"
+          ssh-add private_key.pem
+          rm -f private_key.pem
+      - name: Deploy dist folder to EC2
+        run: rsync -av ./dist ec2-user@${{ env.EC2_IP }}:/home/ec2-user/craft-sync
+      - name: Restart Node.js service
+        run: ssh ec2-user@${{ env.EC2_IP }} 'sudo systemctl restart craft-sync'
