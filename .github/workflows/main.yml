@@ -59,6 +59,6 @@ jobs:
         run: rsync -av -e "ssh -o StrictHostKeyChecking=no -i ~/.ssh/private_key" . ec2-user@${{ env.EC2_IP }}:/home/ec2-user/craft-sync
         working-directory: ./server/dist
       - name: Install dependencies
-        run: ssh ec2-user@${{ env.EC2_IP }} 'cd /home/ec2-user/craft-sync && npm install'
+        run: ssh -o StrictHostKeyChecking=no -i ~/.ssh/private_key ec2-user@${{ env.EC2_IP }} 'cd /home/ec2-user/craft-sync && npm install'
       - name: Restart Node.js service
-        run: ssh ec2-user@${{ env.EC2_IP }} 'sudo systemctl restart craft-sync'
+        run: ssh -o StrictHostKeyChecking=no -i ~/.ssh/private_key ec2-user@${{ env.EC2_IP }} 'sudo systemctl restart craft-sync'
