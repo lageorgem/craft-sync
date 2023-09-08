@@ -55,7 +55,6 @@ jobs:
           chmod 600 private_key.pem
           eval "$(ssh-agent -s)"
           ssh-add private_key.pem
-          rm -f private_key.pem
       - name: Deploy dist folder to EC2
         run: rsync -av ./dist ec2-user@${{ env.EC2_IP }}:/home/ec2-user/craft-sync
         working-directory: ./server
