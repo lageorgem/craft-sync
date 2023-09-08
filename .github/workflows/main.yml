@@ -51,12 +51,12 @@ jobs:
           mkdir ~/.ssh
           touch ~/.ssh/known_hosts
           ssh-keyscan -H ${{ env.EC2_IP }} >> ~/.ssh/known_hosts
-          echo "$PRIVATE_KEY" > private_key.pem
-          chmod 600 private_key.pem
+          echo "$PRIVATE_KEY" | tr -d '\r' > ~/.ssh/private_key
+          chmod 600 ~/.ssh/private_key
           eval "$(ssh-agent -s)"
-          ssh-add private_key.pem
+          ssh-add ~/.ssh/private_key
       - name: Deploy dist folder to EC2
-        run: rsync -av -e "ssh -o StrictHostKeyChecking=no -i private_key.pem" . ec2-user@${{ env.EC2_IP }}:/home/ec2-user/craft-sync
+        run: rsync -av -e "ssh -o StrictHostKeyChecking=no -i ~/.ssh/private_key" . ec2-user@${{ env.EC2_IP }}:/home/ec2-user/craft-sync
         working-directory: ./server/dist
       - name: Install dependencies
         run: ssh ec2-user@${{ env.EC2_IP }} 'cd /home/ec2-user/craft-sync && npm install'
