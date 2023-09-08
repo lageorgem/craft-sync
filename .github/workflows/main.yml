@@ -56,7 +56,7 @@ jobs:
           eval "$(ssh-agent -s)"
           ssh-add private_key.pem
       - name: Deploy dist folder to EC2
-        run: rsync -av -e "ssh -o StrictHostKeyChecking=no -i deploy_key.pem" . ec2-user@${{ env.EC2_IP }}:/home/ec2-user/craft-sync
+        run: rsync -av -e "ssh -o StrictHostKeyChecking=no -i private_key.pem" . ec2-user@${{ env.EC2_IP }}:/home/ec2-user/craft-sync
         working-directory: ./server/dist
       - name: Install dependencies
         run: ssh ec2-user@${{ env.EC2_IP }} 'cd /home/ec2-user/craft-sync && npm install'
