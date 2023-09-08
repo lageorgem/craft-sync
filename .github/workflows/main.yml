@@ -55,5 +55,6 @@ jobs:
           rm -f private_key.pem
       - name: Deploy dist folder to EC2
         run: rsync -av ./dist ec2-user@${{ env.EC2_IP }}:/home/ec2-user/craft-sync
+        working-directory: ./server
       - name: Restart Node.js service
         run: ssh ec2-user@${{ env.EC2_IP }} 'sudo systemctl restart craft-sync'
