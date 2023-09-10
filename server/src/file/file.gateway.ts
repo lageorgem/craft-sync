@@ -1,71 +1,116 @@
-import { SubscribeMessage, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
+import { SubscribeMessage, WebSocketGateway, WebSocketServer, WsResponse } from '@nestjs/websockets';
 import { Server } from 'socket.io';
-import { FileService } from './file.service';
+import { FileEntry, FileService, UniformFileEntry } from './file.service';
+import * as crypto from "crypto";
 
+interface FileDifference {
+  toUpload: UniformFileEntry[];
+  toUpdate: UniformFileEntry[];
+  toDownload: UniformFileEntry[];
+}
+
+interface SyncStatus {
+  update: boolean;
+}
+
+/**
+ * The FileGateway handles WebSocket communication related to file synchronizations.
+ */
 @WebSocketGateway()
 export class FileGateway {
   @WebSocketServer()
   server: Server;
 
+  /**
+   * Constructs the FileGateway with a reference to the FileService.
+   * @param fileService - The service handling file operations.
+   */
   constructor(private readonly fileService: FileService) {}
 
   /**
-   * List all files in an S3 bucket
-   * TODO: use some sort of caching for the file list, as doing S3 queries like this is not scalable
-   * @private
+   * Computes the hash for a given file list.
+   * @param filelist - The string representation of the file list.
+   * @returns A string hash value.
    */
-  private async getServerFileList(): Promise<string[]> {
-    return this.fileService.listFilesInBucket();
+  private computeFileListHash(filelist: string): string {
+    return this.getHashCode(filelist);
   }
 
-  private computeFileListHash(files: string[]): string {
-    // Simple hash function for the demonstration, consider a more robust method in production
-    return this.getHashCode(files.join(',')).toString();
-  }
-
+  /**
+   * Handles the 'check-files-update' WebSocket message.
+   * @param client - The WebSocket client.
+   * @param clientHash - The file hash received from the client.
+   * @returns A WebSocket response indicating whether an update is needed.
+   */
   @SubscribeMessage('check-files-update')
-  async checkFilesUpdate(client: any, clientHash: string): Promise<any> {
-    const serverFileList = await this.getServerFileList();
-    const serverHash = this.computeFileListHash(serverFileList);
+  async checkFilesUpdate(client: any, clientHash: string): Promise<WsResponse<SyncStatus>> {
+    const serverFileList: FileEntry[] = await this.fileService.listFilesInBucket();
+    const fileListStringified: string = serverFileList.map((file) => `${file.fileName}~${file.etag}`)
+        .sort()
+        .join(";");
+    const serverHash = this.computeFileListHash(fileListStringified);
 
     if (serverHash !== clientHash) {
-      return { update: true };
+      return { event: 'check-files-update', data: { update: true } };
     } else {
-      return { update: false };
+      return { event: 'check-files-update', data: { update: false } };
     }
   }
 
+  /**
+   * Handles the 'get-file-diff' WebSocket message.
+   * @param client - The WebSocket client.
+   * @param clientFileList - The list of files received from the client.
+   * @returns A WebSocket response containing the differences between the server and client file lists.
+   */
   @SubscribeMessage('get-file-diff')
-  async getFileDiff(client: any, clientFileList: any[]): Promise<{ toUpload: any[], toDownload: any[] }> {
-    const serverFileList = await this.fileService.getFilesMetadata();
+  async getFileDiff(client: any, clientFileList: UniformFileEntry[]): Promise<WsResponse<FileDifference>> {
+    const serverFileList = await this.fileService.listFilesInBucket();
 
     // Files to Upload
-    const toUpload = clientFileList.filter(clientFile => {
-      const serverFile = serverFileList.find(f => f.filename === clientFile.filename);
+    const toUpload: UniformFileEntry[] = clientFileList.filter(clientFile => {
+      const serverFile = serverFileList.find(f => f.fileName === clientFile.fileName);
 
-      // If the file does not exist on the server or if the client's file is newer
-      return !serverFile || new Date(clientFile.lastUpdated) > new Date(serverFile.lastUpdated);
-    });
+      // If the file does not exist on the server
+      return !serverFile;
+    }).map(file => ({
+      ...file,
+      lastUpdated: file.lastUpdated
+    }));
+
+    // Files to Update
+    const toUpdate: UniformFileEntry[] = clientFileList.filter(clientFile => {
+      const serverFile = serverFileList.find(f => f.fileName === clientFile.fileName);
+
+      if (!serverFile) return false;
+
+      // If the file on the client is different and newer
+      return clientFile.etag !== serverFile.etag && new Date(clientFile.lastUpdated) > new Date(serverFile.lastUpdated);
+    }).map(file => ({
+      ...file,
+      lastUpdated: file.lastUpdated
+    }));
 
     // Files to Download
-    const toDownload = serverFileList.filter(serverFile => {
-      const clientFile = clientFileList.find(f => f.filename === serverFile.filename);
+    const toDownload: UniformFileEntry[] = serverFileList.filter(serverFile => {
+      const clientFile = clientFileList.find(f => f.fileName === serverFile.fileName);
 
-      // If the file does not exist on the client or if the server's file is newer
-      return !clientFile || new Date(serverFile.lastUpdated) > new Date(clientFile.lastUpdated);
-    });
+      // If the file does not exist on the client or if the server's file is different and newer
+      return !clientFile || (clientFile.etag !== serverFile.etag && new Date(serverFile.lastUpdated) > new Date(clientFile.lastUpdated));
+    }).map(file => ({
+      ...file,
+      lastUpdated: file.lastUpdated.toISOString()
+    }));
 
-    return { toUpload, toDownload };
+    return { event: 'get-file-diff', data: { toUpload, toUpdate, toDownload } };
   }
 
-  private getHashCode(str: string) {
-    let hash = 0;
-    if (str.length === 0) return hash;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = (hash << 5) - hash + char;
-      hash |= 0; // Convert to 32bit integer
-    }
-    return hash;
+  /**
+   * Generates a hash code for a given string.
+   * @param str - The input string.
+   * @returns A string hash value.
+   */
+  private getHashCode(str: string): string {
+    return crypto.createHash('sha256').update(str).digest('hex');
   }
 }

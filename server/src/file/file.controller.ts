@@ -1,33 +1,88 @@
-import {Controller, Post, UploadedFile, UseInterceptors, Delete, Param, Put, NestInterceptor} from '@nestjs/common';
+import {
+    Controller,
+    Post,
+    UploadedFile,
+    UseInterceptors,
+    Delete,
+    Param,
+    Put,
+    NestInterceptor,
+    Get, Res, StreamableFile, InternalServerErrorException, Body
+} from '@nestjs/common';
 import { FileService } from './file.service';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Readable } from "stream";
+import streamWeb from "node:stream/web";
 
+/**
+ * The FileController handles HTTP requests related to files.
+ */
 @Controller('file')
 export class FileController {
 
+    /**
+     * Constructs the FileController with a reference to the FileService.
+     * @param fileService - The service handling file operations.
+     */
     constructor(private readonly fileService: FileService) {}
 
-    @Post('upload')
+    /**
+     * Handles POST requests for file uploads.
+     * @param file - The uploaded file.
+     * @param filePath - The file path.
+     * @returns An object indicating the success of the upload.
+     */
+    @Post('')
     @UseInterceptors(FileInterceptor('file') as unknown as NestInterceptor)
-    async uploadFile(@UploadedFile() file: Express.Multer.File) {
-        await this.fileService.uploadFile(file.buffer, file.originalname);
+    async uploadFile(
+        @UploadedFile() file: Express.Multer.File,
+        @Body('filePath') filePath: string
+    ): Promise<{ ok: boolean }> {
+        await this.fileService.uploadFile(file.buffer, filePath);
         return {
             ok: true
         };
     }
 
+    /**
+     * Handles DELETE requests to delete a file.
+     * @param fileKey - The key for the file to be deleted.
+     * @returns The result of the delete operation.
+     */
     @Delete(':key')
     async deleteFile(@Param('key') fileKey: string) {
         return this.fileService.deleteFile(fileKey);
     }
 
-    // For this simple example, the update endpoint deletes the old file and uploads a new one.
-    @Put('update/:key')
+    /**
+     * Handles PUT requests for updating files.
+     * @param file - The uploaded file.
+     * @param filePath - The file path.
+     * @returns The result of the update operation.
+     */
+    @Put('')
     @UseInterceptors(FileInterceptor('file') as unknown as NestInterceptor)
     async updateFile(
-        @Param('key') oldFileKey: string,
-        @UploadedFile() file: Express.Multer.File
+        @UploadedFile() file: Express.Multer.File,
+        @Body('filePath') filePath: string
     ) {
-        return this.fileService.updateFile(oldFileKey, file.buffer, file.originalname);
+        return this.fileService.updateFile(filePath, file.buffer);
+    }
+
+    /**
+     * Handles GET requests for downloading files.
+     * @param fileKey - The key for the file to be downloaded.
+     * @returns The streamable file for the client to download.
+     * @throws {InternalServerErrorException} Throws an exception if an error occurs.
+     */
+    @Get('download/:key')
+    async downloadFile(@Param('key') fileKey: string): Promise<StreamableFile> {
+        try {
+            const stream = await this.fileService.downloadFile(fileKey);
+            const readable = Readable.fromWeb(stream as streamWeb.ReadableStream);
+            return new StreamableFile(readable);
+        } catch (error) {
+            throw new InternalServerErrorException(error.message)
+        }
     }
 }
