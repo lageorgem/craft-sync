@@ -11,7 +11,7 @@ Craft Sync is a utility for synchronizing files across different clients. This r
 
 ### Prerequisites
 
-Ensure you have [Node.js](https://nodejs.org/) installed.
+Ensure you have [Node.js](https://nodejs.org/) 18 or newer installed.
 
 ### Installation
 

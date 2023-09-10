@@ -93,6 +93,7 @@ class CraftSync {
      * @param fileEntries - The list of files that have changed.
      */
     private onFileChange(fileEntries: FileEntry[]) {
+        console.log("Synchronizing...")
         const fileListStringified = fileEntries
             .map((file: FileEntry) => `${file.fileName}~${file.etag}`)
             .sort()
@@ -110,6 +111,8 @@ class CraftSync {
             const shouldSync = syncStatus.update;
             if (shouldSync) {
                 this.onSyncRequired(fileEntries);
+            } else {
+                console.log("No synchronization required");
             }
         })
     }
@@ -121,11 +124,13 @@ class CraftSync {
     private onSyncRequired(fileEntries: FileEntry[]) {
         const syncFileListObservable: Observable<FileDifference> = this.messageHandler.sendGetFileDiff(fileEntries);
         syncFileListObservable.subscribe(async (fileDiff: FileDifference) => {
+            console.log("Synchronization started...")
             const fileHandler: FileHandler = new FileHandler(`http://${this.config.server}:3000`, this.config.folderPath);
 
             this.fileWatcher!.freeze();
             await fileHandler.handleFiles(fileDiff, this.config.folderPath);
             this.fileWatcher!.unfreeze();
+            console.log("Synchronization ended...")
         })
     }
 
@@ -133,6 +138,7 @@ class CraftSync {
      * Callback for when the WebSocket connection is established.
      */
     private async onWebSocketOpen() {
+        console.log("WebSocket connected")
         this.fileWatcher = new FileWatcher(this.config.folderPath as string);
         let timeout: NodeJS.Timeout;
 
