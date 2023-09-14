@@ -1,9 +1,8 @@
-import chokidar from 'chokidar';
-import fs from 'fs';
-import path from 'path';
+import * as chokidar from 'chokidar';
+import * as fs from 'fs';
+import * as path from 'path';
 import * as crypto from 'crypto'
 import * as fg from 'fast-glob'
-
 
 /**
  * Represents a file entry with associated metadata.
@@ -109,12 +108,6 @@ export class FileWatcher {
         return null;
     }
 
-    /**
-     * Calculates the S3 eTag for a file.
-     * @param filePath - The path to the file.
-     * @param chunkSize - The size of the chunk to use for eTag calculation. Default is 5MB.
-     * @returns The calculated eTag.
-     */
     private calculateS3ETag(filePath: string, chunkSize = 5 * 1024 * 1024) {
         const md5Hashes = [];
 

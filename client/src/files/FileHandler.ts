@@ -1,7 +1,7 @@
 import axios, {RawAxiosRequestHeaders} from 'axios';
-import fs from 'fs';
-import path from 'path';
-import FormData from 'form-data';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as FormData from 'form-data';
 import {FileDifference} from "../WebSocketMessageHandler";
 
 /**
@@ -76,7 +76,7 @@ class FileHandler {
                 uploadPromises.push(promise(filePath));
             }
 
-            await Promise.all(uploadPromises);
+            await Promise.allSettled(uploadPromises);
         }
     }
 

@@ -1,5 +1,5 @@
-import fs from 'fs';
-import crypto from 'crypto';
+import * as fs from 'fs';
+import * as crypto from 'crypto';
 import {WebSocket} from 'ws';
 import WebSocketMessageHandler, {FileDifference, SyncStatus} from './WebSocketMessageHandler';
 import {Observable} from "rxjs";

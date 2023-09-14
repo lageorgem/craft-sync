@@ -7,8 +7,9 @@ import {
     Param,
     Put,
     NestInterceptor,
-    Get, Res, StreamableFile, InternalServerErrorException, Body
+    Get, Res, StreamableFile, InternalServerErrorException, Body, Req
 } from '@nestjs/common';
+import { Request } from 'express';
 import { FileService } from './file.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Readable } from "stream";
@@ -71,13 +72,14 @@ export class FileController {
 
     /**
      * Handles GET requests for downloading files.
-     * @param fileKey - The key for the file to be downloaded.
      * @returns The streamable file for the client to download.
      * @throws {InternalServerErrorException} Throws an exception if an error occurs.
+     * @param request - express request
      */
-    @Get('download/:key')
-    async downloadFile(@Param('key') fileKey: string): Promise<StreamableFile> {
+    @Get('download/*')
+    async downloadFile(@Req() request: Request): Promise<StreamableFile> {
         try {
+            const fileKey = request.params[0];
             const stream = await this.fileService.downloadFile(fileKey);
             const readable = Readable.fromWeb(stream as streamWeb.ReadableStream);
             return new StreamableFile(readable);

@@ -40,14 +40,24 @@ export class FileService {
      * Lists files present in the S3 bucket.
      * @returns An array of FileEntry objects.
      */
-    async listFilesInBucket(): Promise<FileEntry[]> {
-        const result = await this.s3.send(new ListObjectsV2Command({ Bucket: 'craft-sync' }));
+    async listFilesInBucket(token?: string): Promise<FileEntry[]> {
+        let filelist: FileEntry[] = [];
+        const result = await this.s3.send(new ListObjectsV2Command({
+            Bucket: 'craft-sync',
+            ...(token && { ContinuationToken: token })
+        }));
+        if (result.IsTruncated) {
+            const nextResult = await this.listFilesInBucket(result.NextContinuationToken);
+            filelist = filelist.concat(nextResult);
+        }
         if (result.KeyCount === 0) return [];
-        return result.Contents.map(file => ({
+        filelist = filelist.concat(result.Contents.map(file => ({
             fileName: file.Key,
             lastUpdated: file.LastModified,
             etag: file.ETag,
-        })).filter(key => key !== undefined);
+        })).filter(key => key !== undefined));
+
+        return filelist;
     }
 
     /**
