@@ -2,6 +2,8 @@
 
 Craft Sync is a utility for synchronizing files across different clients. This repository includes both the client and the server. The client connects to the server via websockets, advertises the local file list, and uses the file differences from the server to determine whether to download or upload files.
 
+For more information, visit the [Craft document](https://www.craft.me/s/6RSZoUQqzqqTk2)
+
 ## Structure
 
 - **Client**: Watches for file changes, makes HTTP requests, and manages websocket connections.
@@ -32,18 +34,19 @@ Ensure you have [Node.js](https://nodejs.org/) 18 or newer installed.
 
 #### **Server:**
 
-To build and start the server:
+In the `server` directory:
 
-1. Build the project:
-   'npm run build'
+1. Build the project for production:
+   `npm run build`
 
-2. Start the server:
-   'npm run start'
+2. Start the server for local testing:
+   `npm run start`
 
 #### **Client:**
 
-In the `client` directory, run the craft sync client utility:
-`npm run craft-sync`
+In the `client` directory:
+1. Run the craft sync client utility:
+    `npm run craft-sync`
 
 ## Development
 
@@ -56,8 +59,3 @@ In the `client` directory, run the craft sync client utility:
 
 - **NestJS**: The server is built using NestJS, a progressive Node.js framework.
 - **AWS S3**: Files are stored in AWS S3.
-- **Jest**: Used for testing.
-
-## License
-
-This project is unlicensed.

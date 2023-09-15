@@ -143,7 +143,7 @@ class CraftSync {
         let timeout: NodeJS.Timeout;
 
         // Watch for file changes
-        await this.fileWatcher.watch((fileEntries) => {
+        this.fileWatcher.watch((fileEntries) => {
             // Establish a 1s timeout that is reset on each callback.
             // This is useful if a folder is pasted into our drive, and multiple events are triggered at once
             if (timeout) clearTimeout(timeout);
